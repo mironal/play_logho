@@ -7,7 +7,6 @@ import play.api.libs.json._
 import com.github.nscala_time.time.Imports._
 
 import java.util.Date
-import java.text.SimpleDateFormat
 
 import models._
 
@@ -27,10 +26,11 @@ object Application extends Controller {
     }
   }
 
-
-
   // EntrysTimestampからJsonへの変換方法の定義
   implicit val entrysTimestampWrites = new Writes[EntrysTimestamp] {
+    import java.text.SimpleDateFormat
+    // timestampのフォーマット
+    def format(date: Date) = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(date)
     def writes(ts: EntrysTimestamp): JsValue = {
       Json.obj(
         "tweet" -> ts.tweet,
@@ -39,10 +39,6 @@ object Application extends Controller {
       )
     }
   }
-
-
-  // timestampのフォーマット
-  def format(date: Date) = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(date)
 
   def index = Action {
     Ok(views.html.index("Your new application is ready."))
