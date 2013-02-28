@@ -13,27 +13,49 @@ import models._
 
 object Application extends Controller {
 
-  case class EntryTimestamp(tweet: String, timestamp: Date, entrys: List[Entry])
+  case class EntrysTimestamp(tweet: String, timestamp: Date, entrys: List[Entry])
 
+
+  // EntryからJsonへの変換方法の定義
+  implicit val entryWrites = new Writes[Entry] {
+    def writes(e: Entry): JsValue = {
+      Json.obj(
+        "title" -> e.title,
+        "url" -> e.url,
+        "cnt" -> e.cnt
+      )
+    }
+  }
+
+
+
+  // EntrysTimestampからJsonへの変換方法の定義
+  implicit val entrysTimestampWrites = new Writes[EntrysTimestamp] {
+    def writes(ts: EntrysTimestamp): JsValue = {
+      Json.obj(
+        "tweet" -> ts.tweet,
+        "timestamp" -> format(ts.timestamp),
+        "entrys" -> Json.toJson(ts.entrys)
+      )
+    }
+  }
+
+
+  // timestampのフォーマット
   def format(date: Date) = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(date)
-
 
   def index = Action {
     Ok(views.html.index("Your new application is ready."))
   }
 
 
-  val returnHotentryJson = returnEntryJson("hot")_
-  val returnNewentryJson = returnEntryJson("new")_
+  lazy val returnHotentryJson = returnEntryJson("hot")_
+  lazy val returnNewentryJson = returnEntryJson("new")_
 
   def hotentrys(dir: String) = {
     optionHotentrys(Some(dir))
   }
 
-  private def errorJson(query: Option[String]) = {
-    val msg = "Invalid query => " + query.getOrElse("empty")
-    Json.toJson(Map("msg" -> msg))
-  }
 
   def optionHotentrys(query: Option[String]) = Action{
     toDate(query) match {
@@ -61,6 +83,11 @@ object Application extends Controller {
     TODO
   }
 
+  private def errorJson(query: Option[String]) = {
+    val msg = "Invalid query => " + query.getOrElse("empty")
+    Json.toJson(Map("msg" -> msg))
+  }
+
   private def timestamps[A](entryType: String, date: LocalDate)( f: List[Timestamp] => A) = {
     entryType match {
       case "hot" => f(Timestamp.findHotentrysByDate(date))
@@ -70,40 +97,10 @@ object Application extends Controller {
   }
 
   private def returnEntryJson(entryType: String)(date: LocalDate): JsValue = {
-
-    def toEntryTimestamps(tss: List[Timestamp]) =
-      tss.map(ts => EntryTimestamp(ts.tweet, ts.created, Entry.findByTimestampId(ts.id)))
-
-    //EntryTimestampのリストをJsValueに変換する
-    def resultsToJson(results: List[EntryTimestamp]): JsValue = {
-      //EntryTimestampをJsValuに変換する
-      def toJson(result: EntryTimestamp): JsValue = {
-        Json.toJson(
-        Map(
-          "tweet" -> Json.toJson(result.tweet),
-          "timestamp" -> Json.toJson(format(result.timestamp)),
-          "entrys" -> entrysToJson(result.entrys)
-        ))
-      }
-
-      //EntryのリストをJsValueに変換する
-      def entrysToJson(entrys: List[Entry]): JsValue = {
-        //EntryをJsValueに変換する
-        def toJson(entry: Entry): JsValue = {
-          Json.toJson(Map(
-            "title" -> Json.toJson(entry.title),
-            "url"   -> Json.toJson(entry.url),
-            "cnt"   -> Json.toJson(entry.cnt)
-          ))
-        }
-        Json.toJson(entrys.map(toJson))
-      }
-      Json.toJson(results.map(toJson))
+    val results = timestamps(entryType, date){ ets =>
+      ets.map{ et => EntrysTimestamp(et.tweet, et.created, Entry.findByTimestampId(et.id))}
     }
-
-    lazy val today = new LocalDate()
-    val results = timestamps(entryType, date)(toEntryTimestamps)
-    resultsToJson(results)
+    Json.toJson(results)
   }
 
   private def toDate(q: Option[String]):Option[LocalDate] = {
