@@ -6,7 +6,9 @@
 GET     /                           controllers.Application.index
 
 GET     /hotentrys                  controllers.Application.optionHotentrys(date: Option[String] ?= None)
-GET     /hotentrys/*dir             controllers.Application.hotentrys(dir: String)
+#GET     /hotentrys/$y<[0-9]{4}>/$m<[0-1]?[0-9].>/$d<[0-3]?[0-9].>   controllers.Application.hoge(y: Int, m: Int, d: Int)
+GET     /hotentrys/$y<[0-9]+>/$m<([1-9])|([01][0-2])>/$d<([1-9])|([0-3][0-9])>    controllers.Application.hoge(y:Int, m:Int, d:Int)
+
 GET     /newentrys                  controllers.Application.optionNewentrys(date: Option[String] ?= None)
 GET     /newentrys/*dir             controllers.Application.newentrys(dir: String)
 GET     /allentrys                  controllers.Application.optionAllentrys(date: Option[String] ?= None)

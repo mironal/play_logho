@@ -113,6 +113,12 @@ object Application extends Controller {
     optionAllentrys(Some(dir))
   }
 
+
+  def hoge(y: Int, m: Int, d:Int) = {
+    println(new LocalDate(y,m, d))
+    TODO
+  }
+
   def optionAllentrys(query: Option[String]) = Action {
     jsonResponseOrError(query){ date =>
     val tss = Timestamp.findAllByDate(date)
