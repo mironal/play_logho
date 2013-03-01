@@ -12,9 +12,6 @@ import models._
 
 object Application extends Controller {
 
-  case class EntrysTimestamp(tweet: String, timestamp: Date, entrys: List[Entry])
-
-
   // EntryからJsonへの変換方法の定義
   implicit val entryWrites = new Writes[Entry] {
     def writes(e: Entry): JsValue = {
@@ -44,32 +41,69 @@ object Application extends Controller {
     Ok(views.html.index("Your new application is ready."))
   }
 
+  def queryHandler(query: Option[String])(ok:LocalDate => Result, ng: String => Result ): Result = {
+    def toDate(q: Option[String]):Option[LocalDate] = {
+      //変なフォーマットのqueryが来たらNoneを返す.
+      def toDate(query: String): Option[LocalDate] = {
+        lazy val date = (y:String, m:String, d:String) => Some(new LocalDate(y.toInt, m.toInt, d.toInt))
+        lazy val slashDelimited = """(\d{4})/(\d{1,2})/(\d{1,2})""".r
+        lazy val hyphenDelimited = """(\d{4})-(\d{1,2})-(\d{1,2})""".r
+        query match {
+          case slashDelimited(y, m, d) => date(y, m, d)
+          case hyphenDelimited(y, m, d) => date(y, m, d)
+          case x =>  None
+        }
+      }
+      // queryの指定が無ければ今日の日付
+      lazy val today = Some(new LocalDate())
+      q.map(toDate).getOrElse(today)
+    }
+    toDate(query) match {
+      case None => ng(query.getOrElse("empty"))
+      case Some(date) => ok(date)
+    }
+  }
 
-  lazy val returnHotentryJson = returnEntryJson("hot")_
-  lazy val returnNewentryJson = returnEntryJson("new")_
+  def jsonResponseOrError(query: Option[String])(ok: LocalDate => List[EntrysTimestamp]): Result = {
+    object OkJson {
+      def apply(f: => JsValue): Result = {
+        Ok(f).as("application/json; charset=utf-8")
+      }
+    }
+    object BadRequestJson {
+      def apply(f: => JsValue): Result = {
+        BadRequest(f).as("application/json; charset=utf-8")
+      }
+    }
+
+    def errorJson(query: String): JsValue = {
+      val msg = "Invalid query => " + query
+      Json.toJson(Map("msg" -> msg))
+    }
+
+    queryHandler(query)(
+      date => OkJson(Json.toJson(ok(date))),
+      s => BadRequestJson(errorJson(s))
+    )
+  }
+
+  def optionHotentrys(query: Option[String]) = Action {
+    jsonResponseOrError(query)( EntrysTimestamp.findHotentrys )
+  }
+
 
   def hotentrys(dir: String) = {
     optionHotentrys(Some(dir))
   }
 
-
-  def optionHotentrys(query: Option[String]) = Action{
-    toDate(query) match {
-      case Some(date) => Ok(returnHotentryJson(date)).as("application/json; charset=utf-8")
-      case None => BadRequest(errorJson(query)).as("application/json; charset=utf-8")
-    }
+  def optionNewentrys(query: Option[String]) = Action{
+    jsonResponseOrError(query)( EntrysTimestamp.findNewentrys )
   }
 
   def newentrys(dir: String) = {
     optionNewentrys(Some(dir))
   }
 
-  def optionNewentrys(query: Option[String]) = Action{
-    toDate(query) match {
-      case Some(date) => Ok(returnNewentryJson(date)).as("application/json; charset=utf-8")
-      case None => BadRequest(errorJson(query)).as("application/json; charset=utf-8")
-    }
-  }
 
   def allentrys(dir: String) = {
     optionAllentrys(Some(dir))
@@ -79,44 +113,4 @@ object Application extends Controller {
     TODO
   }
 
-  private def errorJson(query: Option[String]) = {
-    val msg = "Invalid query => " + query.getOrElse("empty")
-    Json.toJson(Map("msg" -> msg))
-  }
-
-  private def timestamps[A](entryType: String, date: LocalDate)( f: List[Timestamp] => A) = {
-    entryType match {
-      case "hot" => f(Timestamp.findHotentrysByDate(date))
-      case "new" => f(Timestamp.findNewentrysByDate(date))
-      case x => throw new IllegalStateException(x)
-    }
-  }
-
-  private def returnEntryJson(entryType: String)(date: LocalDate): JsValue = {
-    val results = timestamps(entryType, date){ ets =>
-      ets.map{ et => EntrysTimestamp(et.tweet, et.created, Entry.findByTimestampId(et.id))}
-    }
-    Json.toJson(results)
-  }
-
-  private def toDate(q: Option[String]):Option[LocalDate] = {
-    def toDate(query: String): Option[LocalDate] = {
-      lazy val date = (y:String, m:String, d:String) => Some(new LocalDate(y.toInt, m.toInt, d.toInt))
-      lazy val slashDelimited = """(\d{4})/(\d{1,2})/(\d{1,2})""".r
-      lazy val hyphenDelimited = """(\d{4})-(\d{1,2})-(\d{1,2})""".r
-      query match {
-        case slashDelimited(y, m, d) => date(y, m, d)
-        case hyphenDelimited(y, m, d) => date(y, m, d)
-        case x => {
-          println(x)
-          None
-        }
-      }
-    }
-    lazy val today = Some(new LocalDate())
-    q match {
-      case None => today
-      case Some(str) => toDate(str)
-    }
-  }
 }
