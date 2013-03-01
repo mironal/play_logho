@@ -13,7 +13,7 @@ import models._
 object Application extends Controller {
 
   // EntryからJsonへの変換方法の定義
-  implicit val entryWrites = new Writes[Entry] {
+  implicit object EntryWrites extends Writes[Entry] {
     def writes(e: Entry): JsValue = {
       Json.obj(
         "title" -> e.title,
@@ -24,7 +24,7 @@ object Application extends Controller {
   }
 
   // EntrysTimestampからJsonへの変換方法の定義
-  implicit val entrysTimestampWrites = new Writes[EntrysTimestamp] {
+  implicit object EntrysTimestampWrites extends Writes[EntrysTimestamp] {
     import java.text.SimpleDateFormat
     // timestampのフォーマット
     def format(date: Date) = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(date)
@@ -64,7 +64,7 @@ object Application extends Controller {
     }
   }
 
-  def jsonResponseOrError[A](query: Option[String])(ok: LocalDate => List[EntrysTimestamp]): Result = {
+  def jsonResponseOrError(query: Option[String])(ok: LocalDate => List[EntrysTimestamp]): Result = {
     object OkJson {
       def apply(f: => JsValue): Result = {
         Ok(f).as("application/json; charset=utf-8")
