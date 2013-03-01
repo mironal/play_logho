@@ -19,10 +19,6 @@ object EntrysTimestamp {
         timestamps(NEW, date).map(timestampToEntrysTimestamp)
     }
 
-    def findAllentrys(date: LocalDate): List[EntrysTimestamp] = {
-        List()
-    }
-
     private def timestamps(entryType: String, date: LocalDate): List[Timestamp] = {
       entryType match {
         case HOT=> Timestamp.findHotentrysByDate(date)

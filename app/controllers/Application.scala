@@ -64,7 +64,9 @@ object Application extends Controller {
     }
   }
 
-  def jsonResponseOrError(query: Option[String])(ok: LocalDate => List[EntrysTimestamp]): Result = {
+
+  // 本当はokの所にJsValueに変換可能な型を取りたい.okのところでJson.toJsonで包める
+  def jsonResponseOrError(query: Option[String])(ok: LocalDate => JsValue): Result = {
     object OkJson {
       def apply(f: => JsValue): Result = {
         Ok(f).as("application/json; charset=utf-8")
@@ -82,35 +84,46 @@ object Application extends Controller {
     }
 
     queryHandler(query)(
-      date => OkJson(Json.toJson(ok(date))),
+      date => OkJson( ok(date) ),
       s => BadRequestJson(errorJson(s))
     )
   }
 
   def optionHotentrys(query: Option[String]) = Action {
-    jsonResponseOrError(query)( EntrysTimestamp.findHotentrys )
+    jsonResponseOrError(query){ date =>
+      Json.toJson( EntrysTimestamp.findHotentrys(date) )
+    }
   }
-
 
   def hotentrys(dir: String) = {
     optionHotentrys(Some(dir))
   }
 
-  def optionNewentrys(query: Option[String]) = Action{
-    jsonResponseOrError(query)( EntrysTimestamp.findNewentrys )
+  def optionNewentrys(query: Option[String]) = Action {
+    jsonResponseOrError(query){ date =>
+      Json.toJson( EntrysTimestamp.findNewentrys(date) )
+    }
   }
 
   def newentrys(dir: String) = {
     optionNewentrys(Some(dir))
   }
 
-
   def allentrys(dir: String) = {
     optionAllentrys(Some(dir))
   }
 
-  def optionAllentrys(query: Option[String]) = {
-    TODO
+  def optionAllentrys(query: Option[String]) = Action {
+    jsonResponseOrError(query){ date =>
+    val tss = Timestamp.findAllByDate(date)
+    tss.isEmpty match {
+      case true => Json.toJson(List[Entry]())
+      case false => {
+        val startId = tss.head.id
+        val endId = tss.last.id
+        Json.toJson( Entry.findByTimestampIdBetween(startId, endId) )
+      }
+    }
+    }
   }
-
 }
