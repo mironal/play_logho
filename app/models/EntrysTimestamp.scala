@@ -9,6 +9,7 @@ case class EntrysTimestamp(tweet: String, timestamp: Date, entrys: List[Entry])
 object EntrysTimestamp {
     val HOT = "hot"
     val NEW = "new"
+    val ALL = "all"
 
     def findHotentrys(date: LocalDate): List[EntrysTimestamp] = {
         timestamps(HOT, date).map(timestampToEntrysTimestamp)
@@ -18,13 +19,15 @@ object EntrysTimestamp {
         timestamps(NEW, date).map(timestampToEntrysTimestamp)
     }
 
-
+    def findAllentrys(date: LocalDate): List[EntrysTimestamp] = {
+        List()
+    }
 
     private def timestamps(entryType: String, date: LocalDate): List[Timestamp] = {
       entryType match {
         case HOT=> Timestamp.findHotentrysByDate(date)
         case NEW => Timestamp.findNewentrysByDate(date)
-        case x => throw new IllegalStateException(x)
+        case other => throw new IllegalStateException(other)
       }
     }
 

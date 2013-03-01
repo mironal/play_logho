@@ -29,4 +29,15 @@ object Entry {
       }
   }
 
+  def findByTimestampIdBetween(startId: Long, endId: Long): List[Entry] = {
+      DB.withConnection{ implicit c =>
+        SQL("""select contents.title, contents.url, entrys.cnt from entrys
+               inner join contents on entrys.content_id = contents.id
+               where timestamp_id between {startId} and {endId}
+               group by entrys.content_id order by entrys.content_id""")
+             .on("startId" -> startId, "endId" -> endId)
+           .as(Entry.simple *)
+      }
+  }
+
 }

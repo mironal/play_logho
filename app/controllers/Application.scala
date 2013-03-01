@@ -64,7 +64,7 @@ object Application extends Controller {
     }
   }
 
-  def jsonResponseOrError(query: Option[String])(ok: LocalDate => List[EntrysTimestamp]): Result = {
+  def jsonResponseOrError[A](query: Option[String])(ok: LocalDate => List[EntrysTimestamp]): Result = {
     object OkJson {
       def apply(f: => JsValue): Result = {
         Ok(f).as("application/json; charset=utf-8")

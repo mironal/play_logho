@@ -22,9 +22,16 @@ object Timestamp {
         }
     }
 
-    def findEntryByDate(entryType: String)(date: LocalDate) = findEntrys(entryType, date)
+    def findAllByDate(date: LocalDate): List[Timestamp] = {
+      DB.withConnection{ implicit c =>
+        SQL("select id, tweet, created from timestamps where date(created)={date}")
+        .on("date" -> date.toString)
+        .as(Timestamp.simple *)
+      }
+    }
 
     def findHotentrysByDate(date: LocalDate): List[Timestamp] =  findEntrys("hot", date)
+
     def findNewentrysByDate(date: LocalDate): List[Timestamp] = findEntrys("new", date)
 
     private def findEntrys(entryType:String, date: LocalDate): List[Timestamp] = {
