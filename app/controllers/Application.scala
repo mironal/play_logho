@@ -64,9 +64,7 @@ object Application extends Controller {
     }
   }
 
-
-  // 本当はokの所にJsValueに変換可能な型を取りたい.okのところでJson.toJsonで包める
-  def jsonResponseOrError(query: Option[String])(ok: LocalDate => JsValue): Result = {
+  def jsonResponseOrError[T](query: Option[String])(ok: LocalDate => T)(implicit tjs: Writes[T]): Result = {
     object OkJson {
       def apply(f: => JsValue): Result = {
         Ok(f).as("application/json; charset=utf-8")
@@ -84,15 +82,13 @@ object Application extends Controller {
     }
 
     queryHandler(query)(
-      date => OkJson( ok(date) ),
+      date => OkJson( tjs.writes( ok(date) ) ),
       s => BadRequestJson(errorJson(s))
     )
   }
 
   def optionHotentrys(query: Option[String]) = Action {
-    jsonResponseOrError(query){ date =>
-      Json.toJson( EntrysTimestamp.findHotentrys(date) )
-    }
+    jsonResponseOrError(query){ date => EntrysTimestamp.findHotentrys(date) }
   }
 
   def hotentrys(y: Int, m: Int, d:Int) = {
@@ -100,9 +96,7 @@ object Application extends Controller {
   }
 
   def optionNewentrys(query: Option[String]) = Action {
-    jsonResponseOrError(query){ date =>
-      Json.toJson( EntrysTimestamp.findNewentrys(date) )
-    }
+    jsonResponseOrError(query){ date => EntrysTimestamp.findNewentrys(date) }
   }
 
   def newentrys(y: Int, m: Int, d: Int) = {
