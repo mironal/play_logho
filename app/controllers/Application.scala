@@ -88,7 +88,7 @@ object Application extends Controller {
   }
 
   def optionHotentrys(query: Option[String]) = Action {
-    jsonResponseOrError(query){ date => EntrysTimestamp.findHotentrys(date) }
+    jsonResponseOrError(query)( EntrysTimestamp.findHotentrys )
   }
 
   def hotentrys(y: Int, m: Int, d:Int) = {
@@ -96,7 +96,7 @@ object Application extends Controller {
   }
 
   def optionNewentrys(query: Option[String]) = Action {
-    jsonResponseOrError(query){ date => EntrysTimestamp.findNewentrys(date) }
+    jsonResponseOrError(query)( EntrysTimestamp.findNewentrys )
   }
 
   def newentrys(y: Int, m: Int, d: Int) = {
