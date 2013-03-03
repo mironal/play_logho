@@ -95,8 +95,8 @@ object Application extends Controller {
     }
   }
 
-  def hotentrys(dir: String) = {
-    optionHotentrys(Some(dir))
+  def hotentrys(y: Int, m: Int, d:Int) = {
+    optionHotentrys(Some("" + y + "-" + m + "-" + d))
   }
 
   def optionNewentrys(query: Option[String]) = Action {
@@ -105,19 +105,14 @@ object Application extends Controller {
     }
   }
 
-  def newentrys(dir: String) = {
-    optionNewentrys(Some(dir))
+  def newentrys(y: Int, m: Int, d: Int) = {
+    optionNewentrys(Some("" + y + "-" + m + "-" + d))
   }
 
   def allentrys(dir: String) = {
     optionAllentrys(Some(dir))
   }
 
-
-  def hoge(y: Int, m: Int, d:Int) = {
-    println(new LocalDate(y,m, d))
-    TODO
-  }
 
   def optionAllentrys(query: Option[String]) = Action {
     jsonResponseOrError(query){ date =>
