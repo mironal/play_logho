@@ -41,17 +41,23 @@ object Application extends Controller {
     }
   }
 
-  def jsonResponseOrError[T](query: Option[String])(ok: LocalDate => T)(implicit tjs: Writes[T]): Result = {
     object OkJson {
       def apply(f: => JsValue): Result = {
         Ok(f).as("application/json; charset=utf-8")
+      }
+      def apply[T](f : => T)(implicit tjs: Writes[T]): Result = {
+        Ok(tjs.writes(f)).as("application/json; charset=utf-8")
       }
     }
     object BadRequestJson {
       def apply(f: => JsValue): Result = {
         BadRequest(f).as("application/json; charset=utf-8")
       }
+      def apply[T](f : => T)(implicit tjs: Writes[T]): Result = {
+        BadRequest(tjs.writes(f)).as("application/json; charset=utf-8")
+      }
     }
+  def jsonResponseOrError[T](query: Option[String])(ok: LocalDate => T)(implicit tjs: Writes[T]): Result = {
 
     def errorJson(query: String): JsValue = {
       val msg = "Invalid query => " + query
@@ -68,16 +74,48 @@ object Application extends Controller {
     jsonResponseOrError(query)( EntrysTimestamp.findHotentrys )
   }
 
-  def hotentrys(y: Int, m: Int, d:Int) = {
-    optionHotentrys(Some("" + y + "-" + m + "-" + d))
+  import scala.util.control.Exception._
+
+  sealed trait Error {
+    def msg(): String
+  }
+  case class InvalidFieldValue(y: Int, m: Int, d: Int) extends Error {
+    override def msg(): String = {
+      s"Invalid field value $y-$m-$d"
+    }
+  }
+
+  implicit object ErrorWrites extends Writes[Error] {
+    def writes(e: Error): JsValue = {
+      Json.obj(
+        "msg" -> e.msg()
+      )
+    }
+  }
+
+  def dateToResponse(y: Int, m: Int, d: Int)(dateWithError: InvalidFieldValue => Result, date: LocalDate => Result ): Result = {
+    allCatch either new LocalDate(y, m, d) match {
+      case Left(e) => e.printStackTrace; dateWithError( InvalidFieldValue(y, m, d))
+      case Right(ld) => date(ld)
+    }
+  }
+
+  def hotentrys(y: Int, m: Int, d:Int) = Action {
+    dateToResponse(y, m, d)(
+      dateWithError => BadRequestJson( dateWithError),
+      date => OkJson(EntrysTimestamp.findHotentrys(date))
+    )
   }
 
   def optionNewentrys(query: Option[String]) = Action {
     jsonResponseOrError(query)( EntrysTimestamp.findNewentrys )
   }
 
-  def newentrys(y: Int, m: Int, d: Int) = {
-    optionNewentrys(Some("" + y + "-" + m + "-" + d))
+  def newentrys(y: Int, m: Int, d: Int) = Action {
+    dateToResponse(y, m, d)(
+      dateWithError => BadRequestJson( dateWithError),
+      date => OkJson(EntrysTimestamp.findNewentrys(date))
+    )
   }
 
   def allentrys(dir: String) = {
