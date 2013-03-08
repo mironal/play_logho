@@ -37,6 +37,7 @@ object Application extends Controller {
       Ok(tjs.writes(f)).as("application/json; charset=utf-8")
     }
   }
+
   object BadRequestJson {
     def apply(f: => JsValue): Result = {
       BadRequest(f).as("application/json; charset=utf-8")
@@ -46,29 +47,12 @@ object Application extends Controller {
     }
   }
 
-  def dateToResponse(y: Int, m: Int, d: Int)(dateWithError: InvalidFieldValue => Result, date: LocalDate => Result ): Result = {
-    allCatch either new LocalDate(y, m, d) match {
-      case Left(e) => e.printStackTrace; dateWithError( InvalidFieldValue(y, m, d)(e))
-      case Right(ld) => date(ld)
-    }
+  def hotentrys(y: Int, m: Int, d:Int) = Action {
+    dateToResponse(y, m, d)(
+      dateWithError => BadRequestJson( dateWithError),
+      date => OkJson(EntrysTimestamp.findHotentrys(date))
+    )
   }
-
-  def splitQuery(query: Option[String]): Either[InvalidFormat, (Int, Int, Int)] = {
-    lazy val right = (y: String, m: String, d: String) => Right((y.toInt, m.toInt, d.toInt))
-      def split(query: String): Either[InvalidFormat, (Int, Int, Int)] = {
-        lazy val slashDelimited = """(\d{4})/(\d{1,2})/(\d{1,2})""".r
-        lazy val hyphenDelimited = """(\d{4})-(\d{1,2})-(\d{1,2})""".r
-        query match {
-          case slashDelimited(y, m, d) => right(y, m, d)
-          case hyphenDelimited(y, m, d) => right(y, m, d)
-          // あとで"で囲むように治す.
-          case x =>  Left(InvalidFormat(s"Invalid format: ${x}"))
-        }
-      }
-    //(y, m, d)に変換. errorメッセージを適切に出すために冗長なLocalDateの生成が行われている.
-    query.map(split).getOrElse(split(new LocalDate().toString))
-  }
-
 
   def optionHotentrys(query: Option[String]) = Action {
     splitQuery(query) match {
@@ -81,10 +65,10 @@ object Application extends Controller {
     }
   }
 
-  def hotentrys(y: Int, m: Int, d:Int) = Action {
+  def newentrys(y: Int, m: Int, d: Int) = Action {
     dateToResponse(y, m, d)(
       dateWithError => BadRequestJson( dateWithError),
-      date => OkJson(EntrysTimestamp.findHotentrys(date))
+      date => OkJson(EntrysTimestamp.findNewentrys(date))
     )
   }
 
@@ -97,12 +81,6 @@ object Application extends Controller {
           date => OkJson(EntrysTimestamp.findNewentrys(date))
         )
     }
-  }
-  def newentrys(y: Int, m: Int, d: Int) = Action {
-    dateToResponse(y, m, d)(
-      dateWithError => BadRequestJson( dateWithError),
-      date => OkJson(EntrysTimestamp.findNewentrys(date))
-    )
   }
 
   def allentrys(y: Int, m: Int, d: Int) = Action {
@@ -142,4 +120,29 @@ object Application extends Controller {
       )
     }
   }
+
+
+  private def dateToResponse(y: Int, m: Int, d: Int)(dateWithError: InvalidFieldValue => Result, date: LocalDate => Result ): Result = {
+    allCatch either new LocalDate(y, m, d) match {
+      case Left(e) => e.printStackTrace; dateWithError( InvalidFieldValue(y, m, d)(e))
+      case Right(ld) => date(ld)
+    }
+  }
+
+  private def splitQuery(query: Option[String]): Either[InvalidFormat, (Int, Int, Int)] = {
+    lazy val right = (y: String, m: String, d: String) => Right((y.toInt, m.toInt, d.toInt))
+      def split(query: String): Either[InvalidFormat, (Int, Int, Int)] = {
+        lazy val slashDelimited = """(\d{4})/(\d{1,2})/(\d{1,2})""".r
+        lazy val hyphenDelimited = """(\d{4})-(\d{1,2})-(\d{1,2})""".r
+        query match {
+          case slashDelimited(y, m, d) => right(y, m, d)
+          case hyphenDelimited(y, m, d) => right(y, m, d)
+          // あとで"で囲むように治す.
+          case x =>  Left(InvalidFormat(s"Invalid format: ${x}"))
+        }
+      }
+    //(y, m, d)に変換. errorメッセージを適切に出すために冗長なLocalDateの生成が行われている.
+    query.map(split).getOrElse(split(new LocalDate().toString))
+  }
+
 }
