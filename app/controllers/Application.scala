@@ -11,30 +11,11 @@ import java.util.Date
 import models._
 
 import LoghoWrites._
+import Error._
 
 import scala.util.control.Exception._
 
 object Application extends Controller {
-
-  sealed trait Error {
-    def msg(): String
-  }
-
-  // new LocalDate()した結果が、 org.joda.time.IllegalFieldValueException
-  //org.joda.time.IllegalFieldValueException: Cannot parse "2000-2-30": Value 30 for dayOfMonth must be in the range [1, 29]
-  //あとで頑張って適切にエラーメッセージ出すといいかも.
-  case class InvalidFieldValue(y: Int, m: Int, d: Int)(implicit e: Throwable) extends Error {
-    override def msg(): String = {
-      s"Invalid field value $y-$m-$d"
-    }
-  }
-
-  // java.lang.IllegalArgumentException: Invalid format: "aaaaa"
-  case class InvalidFormat(str: String) extends Error {
-    override def msg(): String = {
-      s"Invalid format: $str"
-    }
-  }
 
   implicit object ErrorWrites extends Writes[Error] {
     def writes(e: Error): JsValue = {
@@ -43,7 +24,6 @@ object Application extends Controller {
       )
     }
   }
-
 
   def index = Action {
     Ok(views.html.index("Your new application is ready."))
@@ -57,6 +37,7 @@ object Application extends Controller {
       Ok(tjs.writes(f)).as("application/json; charset=utf-8")
     }
   }
+
   object BadRequestJson {
     def apply(f: => JsValue): Result = {
       BadRequest(f).as("application/json; charset=utf-8")
@@ -66,30 +47,12 @@ object Application extends Controller {
     }
   }
 
-
-  def dateToResponse(y: Int, m: Int, d: Int)(dateWithError: InvalidFieldValue => Result, date: LocalDate => Result ): Result = {
-    allCatch either new LocalDate(y, m, d) match {
-      case Left(e) => e.printStackTrace; dateWithError( InvalidFieldValue(y, m, d)(e))
-      case Right(ld) => date(ld)
-    }
+  def hotentrys(y: Int, m: Int, d:Int) = Action {
+    dateToResponse(y, m, d)(
+      dateWithError => BadRequestJson( dateWithError),
+      date => OkJson(EntrysTimestamp.findHotentrys(date))
+    )
   }
-
-  def splitQuery(query: Option[String]): Either[InvalidFormat, (Int, Int, Int)] = {
-    lazy val right = (y: String, m: String, d: String) => Right((y.toInt, m.toInt, d.toInt))
-      def split(query: String): Either[InvalidFormat, (Int, Int, Int)] = {
-        lazy val slashDelimited = """(\d{4})/(\d{1,2})/(\d{1,2})""".r
-        lazy val hyphenDelimited = """(\d{4})-(\d{1,2})-(\d{1,2})""".r
-        query match {
-          case slashDelimited(y, m, d) => right(y, m, d)
-          case hyphenDelimited(y, m, d) => right(y, m, d)
-          // あとで"で囲むように治す.
-          case x =>  Left(InvalidFormat(s"Invalid format: ${x}"))
-        }
-      }
-    //(y, m, d)に変換. errorメッセージを適切に出すために冗長なLocalDateの生成が行われている.
-    query.map(split).getOrElse(split(new LocalDate().toString))
-  }
-
 
   def optionHotentrys(query: Option[String]) = Action {
     splitQuery(query) match {
@@ -102,10 +65,10 @@ object Application extends Controller {
     }
   }
 
-  def hotentrys(y: Int, m: Int, d:Int) = Action {
+  def newentrys(y: Int, m: Int, d: Int) = Action {
     dateToResponse(y, m, d)(
       dateWithError => BadRequestJson( dateWithError),
-      date => OkJson(EntrysTimestamp.findHotentrys(date))
+      date => OkJson(EntrysTimestamp.findNewentrys(date))
     )
   }
 
@@ -118,12 +81,6 @@ object Application extends Controller {
           date => OkJson(EntrysTimestamp.findNewentrys(date))
         )
     }
-  }
-  def newentrys(y: Int, m: Int, d: Int) = Action {
-    dateToResponse(y, m, d)(
-      dateWithError => BadRequestJson( dateWithError),
-      date => OkJson(EntrysTimestamp.findNewentrys(date))
-    )
   }
 
   def allentrys(y: Int, m: Int, d: Int) = Action {
@@ -163,4 +120,29 @@ object Application extends Controller {
       )
     }
   }
+
+
+  private def dateToResponse(y: Int, m: Int, d: Int)(dateWithError: InvalidFieldValue => Result, date: LocalDate => Result ): Result = {
+    allCatch either new LocalDate(y, m, d) match {
+      case Left(e) => e.printStackTrace; dateWithError( InvalidFieldValue(y, m, d)(e))
+      case Right(ld) => date(ld)
+    }
+  }
+
+  private def splitQuery(query: Option[String]): Either[InvalidFormat, (Int, Int, Int)] = {
+    lazy val right = (y: String, m: String, d: String) => Right((y.toInt, m.toInt, d.toInt))
+      def split(query: String): Either[InvalidFormat, (Int, Int, Int)] = {
+        lazy val slashDelimited = """(\d{4})/(\d{1,2})/(\d{1,2})""".r
+        lazy val hyphenDelimited = """(\d{4})-(\d{1,2})-(\d{1,2})""".r
+        query match {
+          case slashDelimited(y, m, d) => right(y, m, d)
+          case hyphenDelimited(y, m, d) => right(y, m, d)
+          // あとで"で囲むように治す.
+          case x =>  Left(InvalidFormat(s"Invalid format: ${x}"))
+        }
+      }
+    //(y, m, d)に変換. errorメッセージを適切に出すために冗長なLocalDateの生成が行われている.
+    query.map(split).getOrElse(split(new LocalDate().toString))
+  }
+
 }
