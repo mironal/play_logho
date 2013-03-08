@@ -13,7 +13,7 @@ GET     /hotentrys/$y<[0-9]+>/$m<([1-9])|([01][0-2])>/$d<([1-9])|([0-3][0-9])> c
 GET     /newentrys                  controllers.Application.optionNewentrys(date: Option[String] ?= None)
 GET     /newentrys/$y<[0-9]+>/$m<([1-9])|([01][0-2])>/$d<([1-9])|([0-3][0-9])> controllers.Application.newentrys(y:Int, m:Int, d:Int)
 GET     /allentrys                  controllers.Application.optionAllentrys(date: Option[String] ?= None)
-GET     /allentrys/*dir             controllers.Application.allentrys(dir: String)
+GET     /allentrys/$y<[0-9]+>/$m<([1-9])|([01][0-2])>/$d<([1-9])|([0-3][0-9])> controllers.Application.allentrys(y:Int, m:Int, d:Int)
 
 
 # Map static resources from the /public folder to the /assets URL path

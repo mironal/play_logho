@@ -10,115 +10,157 @@ import java.util.Date
 
 import models._
 
+import LoghoWrites._
+
+import scala.util.control.Exception._
+
 object Application extends Controller {
 
-  // EntryからJsonへの変換方法の定義
-  implicit object EntryWrites extends Writes[Entry] {
-    def writes(e: Entry): JsValue = {
+  sealed trait Error {
+    def msg(): String
+  }
+
+  // new LocalDate()した結果が、 org.joda.time.IllegalFieldValueException
+  //org.joda.time.IllegalFieldValueException: Cannot parse "2000-2-30": Value 30 for dayOfMonth must be in the range [1, 29]
+  //あとで頑張って適切にエラーメッセージ出すといいかも.
+  case class InvalidFieldValue(y: Int, m: Int, d: Int)(implicit e: Throwable) extends Error {
+    override def msg(): String = {
+      s"Invalid field value $y-$m-$d"
+    }
+  }
+
+  // java.lang.IllegalArgumentException: Invalid format: "aaaaa"
+  case class InvalidFormat(str: String) extends Error {
+    override def msg(): String = {
+      s"Invalid format: $str"
+    }
+  }
+
+  implicit object ErrorWrites extends Writes[Error] {
+    def writes(e: Error): JsValue = {
       Json.obj(
-        "title" -> e.title,
-        "url" -> e.url,
-        "cnt" -> e.cnt
+        "msg" -> e.msg()
       )
     }
   }
 
-  // EntrysTimestampからJsonへの変換方法の定義
-  implicit object EntrysTimestampWrites extends Writes[EntrysTimestamp] {
-    import java.text.SimpleDateFormat
-    // timestampのフォーマット
-    def format(date: Date) = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(date)
-    def writes(ts: EntrysTimestamp): JsValue = {
-      Json.obj(
-        "tweet" -> ts.tweet,
-        "timestamp" -> format(ts.timestamp),
-        "entrys" -> Json.toJson(ts.entrys)
-      )
-    }
-  }
 
   def index = Action {
     Ok(views.html.index("Your new application is ready."))
   }
 
-  def queryHandler(query: Option[String])(ok:LocalDate => Result, ng: String => Result ): Result = {
-    def toDate(q: Option[String]):Option[LocalDate] = {
-      //変なフォーマットのqueryが来たらNoneを返す.
-      def toDate(query: String): Option[LocalDate] = {
-        lazy val date = (y:String, m:String, d:String) => Some(new LocalDate(y.toInt, m.toInt, d.toInt))
+  object OkJson {
+    def apply(f: => JsValue): Result = {
+      Ok(f).as("application/json; charset=utf-8")
+    }
+    def apply[T](f : => T)(implicit tjs: Writes[T]): Result = {
+      Ok(tjs.writes(f)).as("application/json; charset=utf-8")
+    }
+  }
+  object BadRequestJson {
+    def apply(f: => JsValue): Result = {
+      BadRequest(f).as("application/json; charset=utf-8")
+    }
+    def apply[T](f : => T)(implicit tjs: Writes[T]): Result = {
+      BadRequest(tjs.writes(f)).as("application/json; charset=utf-8")
+    }
+  }
+
+
+  def dateToResponse(y: Int, m: Int, d: Int)(dateWithError: InvalidFieldValue => Result, date: LocalDate => Result ): Result = {
+    allCatch either new LocalDate(y, m, d) match {
+      case Left(e) => e.printStackTrace; dateWithError( InvalidFieldValue(y, m, d)(e))
+      case Right(ld) => date(ld)
+    }
+  }
+
+  def splitQuery(query: Option[String]): Either[InvalidFormat, (Int, Int, Int)] = {
+    lazy val right = (y: String, m: String, d: String) => Right((y.toInt, m.toInt, d.toInt))
+      def split(query: String): Either[InvalidFormat, (Int, Int, Int)] = {
         lazy val slashDelimited = """(\d{4})/(\d{1,2})/(\d{1,2})""".r
         lazy val hyphenDelimited = """(\d{4})-(\d{1,2})-(\d{1,2})""".r
         query match {
-          case slashDelimited(y, m, d) => date(y, m, d)
-          case hyphenDelimited(y, m, d) => date(y, m, d)
-          case x =>  None
+          case slashDelimited(y, m, d) => right(y, m, d)
+          case hyphenDelimited(y, m, d) => right(y, m, d)
+          // あとで"で囲むように治す.
+          case x =>  Left(InvalidFormat(s"Invalid format: ${x}"))
         }
       }
-      // queryの指定が無ければ今日の日付
-      lazy val today = Some(new LocalDate())
-      q.map(toDate).getOrElse(today)
-    }
-    toDate(query) match {
-      case None => ng(query.getOrElse("empty"))
-      case Some(date) => ok(date)
+    //(y, m, d)に変換. errorメッセージを適切に出すために冗長なLocalDateの生成が行われている.
+    query.map(split).getOrElse(split(new LocalDate().toString))
+  }
+
+
+  def optionHotentrys(query: Option[String]) = Action {
+    splitQuery(query) match {
+      case Left(e) => BadRequestJson(e)
+      case Right((y, m, d)) =>
+        dateToResponse(y, m, d)(
+          dateWithError => BadRequestJson( dateWithError),
+          date => OkJson(EntrysTimestamp.findHotentrys(date))
+        )
     }
   }
 
-  def jsonResponseOrError[T](query: Option[String])(ok: LocalDate => T)(implicit tjs: Writes[T]): Result = {
-    object OkJson {
-      def apply(f: => JsValue): Result = {
-        Ok(f).as("application/json; charset=utf-8")
-      }
-    }
-    object BadRequestJson {
-      def apply(f: => JsValue): Result = {
-        BadRequest(f).as("application/json; charset=utf-8")
-      }
-    }
-
-    def errorJson(query: String): JsValue = {
-      val msg = "Invalid query => " + query
-      Json.toJson(Map("msg" -> msg))
-    }
-
-    queryHandler(query)(
-      date => OkJson( tjs.writes( ok(date) ) ),
-      s => BadRequestJson(errorJson(s))
+  def hotentrys(y: Int, m: Int, d:Int) = Action {
+    dateToResponse(y, m, d)(
+      dateWithError => BadRequestJson( dateWithError),
+      date => OkJson(EntrysTimestamp.findHotentrys(date))
     )
   }
 
-  def optionHotentrys(query: Option[String]) = Action {
-    jsonResponseOrError(query)( EntrysTimestamp.findHotentrys )
-  }
-
-  def hotentrys(y: Int, m: Int, d:Int) = {
-    optionHotentrys(Some("" + y + "-" + m + "-" + d))
-  }
-
   def optionNewentrys(query: Option[String]) = Action {
-    jsonResponseOrError(query)( EntrysTimestamp.findNewentrys )
+    splitQuery(query) match {
+      case Left(e) => BadRequestJson(e)
+      case Right((y, m, d)) =>
+        dateToResponse(y, m, d)(
+          dateWithError => BadRequestJson( dateWithError),
+          date => OkJson(EntrysTimestamp.findNewentrys(date))
+        )
+    }
+  }
+  def newentrys(y: Int, m: Int, d: Int) = Action {
+    dateToResponse(y, m, d)(
+      dateWithError => BadRequestJson( dateWithError),
+      date => OkJson(EntrysTimestamp.findNewentrys(date))
+    )
   }
 
-  def newentrys(y: Int, m: Int, d: Int) = {
-    optionNewentrys(Some("" + y + "-" + m + "-" + d))
+  def allentrys(y: Int, m: Int, d: Int) = Action {
+    dateToResponse(y, m, d)(
+      dateWithError => BadRequestJson( dateWithError),
+      date => OkJson{
+        val tss = Timestamp.findAllByDate(date)
+          tss.isEmpty match {
+          case true => List[Entry]()
+          case false => {
+            val startId = tss.head.id
+            val endId = tss.last.id
+            Entry.findByTimestampIdBetween(startId, endId)
+          }
+        }
+      }
+    )
   }
-
-  def allentrys(dir: String) = {
-    optionAllentrys(Some(dir))
-  }
-
 
   def optionAllentrys(query: Option[String]) = Action {
-    jsonResponseOrError(query){ date =>
-    val tss = Timestamp.findAllByDate(date)
-    tss.isEmpty match {
-      case true => Json.toJson(List[Entry]())
-      case false => {
-        val startId = tss.head.id
-        val endId = tss.last.id
-        Json.toJson( Entry.findByTimestampIdBetween(startId, endId) )
-      }
-    }
+    splitQuery(query) match {
+      case Left(e) => BadRequestJson(e)
+      case Right((y, m, d)) =>
+      dateToResponse(y, m, d)(
+        dateWithError => BadRequestJson( dateWithError),
+        date => OkJson{
+          val tss = Timestamp.findAllByDate(date)
+            tss.isEmpty match {
+            case true => List[Entry]()
+            case false => {
+              val startId = tss.head.id
+              val endId = tss.last.id
+              Entry.findByTimestampIdBetween(startId, endId)
+            }
+          }
+        }
+      )
     }
   }
 }
