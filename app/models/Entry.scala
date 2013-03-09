@@ -8,6 +8,7 @@ import anorm.SqlParser._
 
 import com.github.nscala_time.time.Imports._
 
+import scala.language.postfixOps
 
 case class Entry(title: String, url: String, cnt: Int)
 

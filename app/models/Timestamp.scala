@@ -10,6 +10,8 @@ import com.github.nscala_time.time.Imports._
 
 import java.util.Date
 
+import scala.language.postfixOps
+
 case class Timestamp(id: Long, tweet: String, created: Date)
 
 object Timestamp {
