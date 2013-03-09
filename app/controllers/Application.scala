@@ -87,15 +87,7 @@ object Application extends Controller {
     dateToResponse(y, m, d)(
       dateWithError => BadRequestJson( dateWithError),
       date => OkJson{
-        val tss = Timestamp.findAllByDate(date)
-          tss.isEmpty match {
-          case true => List[Entry]()
-          case false => {
-            val startId = tss.head.id
-            val endId = tss.last.id
-            Entry.findByTimestampIdBetween(startId, endId)
-          }
-        }
+        dateToAllentrys(date)
       }
     )
   }
@@ -107,20 +99,23 @@ object Application extends Controller {
       dateToResponse(y, m, d)(
         dateWithError => BadRequestJson( dateWithError),
         date => OkJson{
-          val tss = Timestamp.findAllByDate(date)
-            tss.isEmpty match {
-            case true => List[Entry]()
-            case false => {
-              val startId = tss.head.id
-              val endId = tss.last.id
-              Entry.findByTimestampIdBetween(startId, endId)
-            }
-          }
+          dateToAllentrys(date)
         }
       )
     }
   }
 
+
+  private def dateToAllentrys(date: LocalDate): List[Entry] = {
+    val tss = Timestamp.findAllByDate(date)
+    tss.isEmpty match {
+      case true => List[Entry]()
+      case false =>
+        val startId = tss.head.id
+        val endId = tss.last.id
+        Entry.findByTimestampIdBetween(startId, endId)
+    }
+  }
 
   private def dateToResponse(y: Int, m: Int, d: Int)(dateWithError: InvalidFieldValue => Result, date: LocalDate => Result ): Result = {
     allCatch either new LocalDate(y, m, d) match {
