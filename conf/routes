@@ -6,12 +6,12 @@
 GET     /                           controllers.Application.index
 
 # ?date=yyyy-mm-dd形式
-GET     /hotentrys                  controllers.Application.optionHotentrys(date: Option[String] ?= None)
+GET     /hotentrys                  controllers.Application.hotentrysByQuery(date: Option[String] ?= None)
 #/yyyy/mm/dd形式
 GET     /hotentrys/$y<[0-9]+>/$m<([1-9])|([01][0-2])>/$d<([1-9])|([0-3][0-9])> controllers.Application.hotentrys(y:Int, m:Int, d:Int)
-GET     /newentrys                  controllers.Application.optionNewentrys(date: Option[String] ?= None)
+GET     /newentrys                  controllers.Application.newentrysByQuery(date: Option[String] ?= None)
 GET     /newentrys/$y<[0-9]+>/$m<([1-9])|([01][0-2])>/$d<([1-9])|([0-3][0-9])> controllers.Application.newentrys(y:Int, m:Int, d:Int)
-GET     /allentrys                  controllers.Application.optionAllentrys(date: Option[String] ?= None)
+GET     /allentrys                  controllers.Application.allentrysByQuery(date: Option[String] ?= None)
 GET     /allentrys/$y<[0-9]+>/$m<([1-9])|([01][0-2])>/$d<([1-9])|([0-3][0-9])> controllers.Application.allentrys(y:Int, m:Int, d:Int)
 
 

@@ -54,7 +54,7 @@ object Application extends Controller {
     )
   }
 
-  def optionHotentrys(query: Option[String]) = Action {
+  def hotentrysByQuery(query: Option[String]) = Action {
     splitQuery(query) match {
       case Left(e) => BadRequestJson(e)
       case Right((y, m, d)) =>
@@ -72,7 +72,7 @@ object Application extends Controller {
     )
   }
 
-  def optionNewentrys(query: Option[String]) = Action {
+  def newentrysByQuery(query: Option[String]) = Action {
     splitQuery(query) match {
       case Left(e) => BadRequestJson(e)
       case Right((y, m, d)) =>
@@ -92,7 +92,7 @@ object Application extends Controller {
     )
   }
 
-  def optionAllentrys(query: Option[String]) = Action {
+  def allentrysByQuery(query: Option[String]) = Action {
     splitQuery(query) match {
       case Left(e) => BadRequestJson(e)
       case Right((y, m, d)) =>
